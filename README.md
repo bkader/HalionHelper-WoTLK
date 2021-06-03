@@ -5,7 +5,7 @@ A modified version of the [Original Addon](https://www.curseforge.com/wow/addons
 
 ## How to install
 
-1. Download the package
+1. [Download the package](https://github.com/bkader/HalionHelper-WoTLK/archive/refs/heads/main.zip).
 2. Unpack the Zip file.
 3. Open the folder `HalionHelper-main`.
 4. Copy (or drag and drop) **HalionHelper** folder into you `Wow-Directory\Interface\AddOns`.
