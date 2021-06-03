@@ -292,9 +292,7 @@ do
 		end
 
 		-- create the bar if not created
-		if not HalionBar then
-			CreateHalionBar()
-		end
+		CreateHalionBar()
 
 		if event == "SPELL_AURA_APPLIED" then
 			if spellname == combustion and dstGUID == playerGUID then -- combustion
