@@ -1,5 +1,6 @@
 local folder, core = ...
 local L = core.L
+_G.HalionHelper = core
 
 -- globals
 local unpack = unpack
@@ -16,13 +17,13 @@ local PlaySoundFile = PlaySoundFile
 
 -- locals
 local halion = {[40142] = true, [39863] = true}
-local combustion = select(1, GetSpellInfo(74562))
-local consumption = select(1, GetSpellInfo(74792))
+local combustion = GetSpellInfo(74562)
+local consumption = GetSpellInfo(74792)
 local texture = [[Interface\BUTTONS\WHITE8X8]]
 local enabled, inCombat
 local playerGUID
 
-local insideBuff = select(1, GetSpellInfo(74807))
+local insideBuff = GetSpellInfo(74807)
 local isInside
 
 HalionHelperDB = {}
@@ -138,7 +139,7 @@ do
 		if HalionBar then
 			return
 		end
-		HalionBar = CreateFrame("Frame", "HalionHelper", UIParent)
+		HalionBar = CreateFrame("Frame", "HalionHelperFrame", UIParent)
 		HalionBar:SetSize(210, 20)
 		HalionBar:SetBackdrop({
 			bgFile = texture,
@@ -182,7 +183,7 @@ do
 
 		-- message
 		HalionBar.message = HalionBar:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-		HalionBar.message:SetPoint("BOTTOM", HalionHelper, "TOP", 0, 5)
+		HalionBar.message:SetPoint("BOTTOM", HalionBar, "TOP", 0, 5)
 		HalionBar.message:SetText("")
 
 		-- here
@@ -242,10 +243,7 @@ function addon:ADDON_LOADED(name)
 		self:RegisterEvent("PLAYER_REGEN_DISABLED")
 		self:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 	else
-		self:UnregisterEvent("UNIT_AURA")
-		self:UnregisterEvent("PLAYER_REGEN_ENABLED")
-		self:UnregisterEvent("PLAYER_REGEN_DISABLED")
-		self:UnregisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+		self:UnregisterAllEvents()
 	end
 end
 
@@ -274,7 +272,7 @@ function addon:ZONE_CHANGED_NEW_AREA()
 		return
 	end
 
-	local mapID, _ = GetCurrentMapAreaID()
+	local mapID = GetCurrentMapAreaID()
 	enabled = (mapID == 610)
 end
 
