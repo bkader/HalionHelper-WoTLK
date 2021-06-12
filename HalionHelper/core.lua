@@ -17,14 +17,12 @@ local PlaySoundFile = PlaySoundFile
 
 -- locals
 local halion = {[40142] = true, [39863] = true}
+local cached = {}
 local combustion = GetSpellInfo(74562)
 local consumption = GetSpellInfo(74792)
 local texture = [[Interface\BUTTONS\WHITE8X8]]
 local enabled, inCombat
-local playerGUID
-
-local insideBuff = GetSpellInfo(74807)
-local isInside
+local playerGUID, isInside
 
 HalionHelperDB = {}
 
@@ -45,12 +43,7 @@ local corporeality = {
 
 -- event handling
 local addon = CreateFrame("Frame")
-addon:SetScript(
-	"OnEvent",
-	function(self, event, ...)
-		self[event](self, ...)
-	end
-)
+addon:SetScript("OnEvent", function(self, event, ...) self[event](self, ...) end)
 addon:RegisterEvent("ADDON_LOADED")
 
 -- addon frame
@@ -223,7 +216,7 @@ function addon:ADDON_LOADED(name)
 		return
 	end
 	self:UnregisterEvent("ADDON_LOADED")
-	self:RegisterEvent("ZONE_CHANGED_NEW_AREA")
+	self:RegisterEvent("PLAYER_ENTERING_WORLD")
 	playerGUID = UnitGUID("player")
 	self:ZONE_CHANGED_NEW_AREA()
 
@@ -236,30 +229,19 @@ function addon:ADDON_LOADED(name)
 			HalionBar:Show()
 		end
 	end
-
-	if enabled then
-		self:RegisterEvent("UNIT_AURA")
-		self:RegisterEvent("PLAYER_REGEN_ENABLED")
-		self:RegisterEvent("PLAYER_REGEN_DISABLED")
-		self:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-	else
-		self:UnregisterAllEvents()
-	end
 end
 
-function addon:UNIT_AURA(unit)
-	if unit == "player" then
-		local spellid = select(11, UnitBuff("player", insideBuff))
-		isInside = (spellid == 74807)
-	end
+function addon:PLAYER_ENTERING_WORLD()
+	self:RegisterEvent("ZONE_CHANGED_NEW_AREA")
+	self:ZONE_CHANGED_NEW_AREA()
 end
 
 function addon:PLAYER_REGEN_DISABLED()
-	inCombat = true
+	inCombat, cached = true, {}
 end
 
 function addon:PLAYER_REGEN_ENABLED()
-	inCombat = false
+	inCombat, cached = false, {}
 	if HalionBar then
 		HalionBar:Hide()
 	end
@@ -274,38 +256,80 @@ function addon:ZONE_CHANGED_NEW_AREA()
 
 	local mapID = GetCurrentMapAreaID()
 	enabled = (mapID == 610)
+
+	if enabled then
+		self:RegisterEvent("PLAYER_REGEN_ENABLED")
+		self:RegisterEvent("PLAYER_REGEN_DISABLED")
+		self:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+	else
+		self:UnregisterEvent("PLAYER_REGEN_ENABLED")
+		self:UnregisterEvent("PLAYER_REGEN_DISABLED")
+		self:UnregisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+	end
 end
 
-do
-	local function IsHalion(guid)
-		if guid then
-			local id = tonumber(guid:sub(9, 12), 16)
-			return id and halion[id]
+function addon:IsHalion(guid)
+	if tonumber(guid) then
+		if cached[guid] then
+			return cached[guid]
+		end
+
+		local id = tonumber(guid:sub(9, 12), 16)
+		if id and halion[id] then
+			cached[guid] = id
+			return id
+		end
+	end
+end
+
+function addon:COMBAT_LOG_EVENT_UNFILTERED(_, event, srcGUID, _, _, dstGUID, dstName, _, spellid, spellname)
+	if not enabled or not inCombat then
+		return
+	end
+
+	-- create the bar if not created
+	CreateHalionBar()
+
+	if self:IsHalion(srcGUID) == 40142 and not isInside then
+		isInside = true
+		if HalionBar then
+			HalionBar.here:SetText(L["Inside"])
+			HalionBar.there:SetText(L["Outside"])
+		end
+	elseif self:IsHalion(srcGUID) == 39863 and isInside then
+		isInside = false
+		if HalionBar then
+			HalionBar.here:SetText(L["Outside"])
+			HalionBar.there:SetText(L["Inside"])
 		end
 	end
 
-	function addon:COMBAT_LOG_EVENT_UNFILTERED(_, event, srcGUID, _, _, dstGUID, dstName, _, spellid, spellname, _, _)
-		if not enabled or not inCombat or not (IsHalion(srcGUID) or IsHalion(dstGUID)) then
-			return
-		end
-
-		-- create the bar if not created
-		CreateHalionBar()
-
-		if event == "SPELL_AURA_APPLIED" then
-			if spellname == combustion and dstGUID == playerGUID then -- combustion
+	if event == "SPELL_AURA_APPLIED" then
+		-- combustion/consumption
+		if spellname == combustion then
+			if dstGUID == playerGUID then
 				AlertPlayer("combustion")
-			elseif spellname == consumption and dstGUID == playerGUID then -- consumption
+			end
+
+			if isInside then
+				isInside = false
+			end
+		elseif spellname == consumption then
+			if dstGUID == playerGUID then
 				AlertPlayer("consumption")
 			end
 
-			-- corporeality
-			if IsHalion(dstGUID) and corporeality[spellid] then
-				if not HalionBar:IsShown() then
-					HalionBar:Show()
-				end
-				HalionBar:MoveIndicator(corporeality[spellid])
+			if not isInside then
+				isInside = true
 			end
+		end
+
+		-- halion corporeality
+		if (self:IsHalion(dstGUID) or self:IsHalion(srcGUID)) and corporeality[spellid] then
+			if not HalionBar:IsShown() then
+				HalionBar:Show()
+			end
+			HalionBar:MoveIndicator(corporeality[spellid])
 		end
 	end
 end
