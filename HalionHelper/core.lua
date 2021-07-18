@@ -218,7 +218,6 @@ function addon:ADDON_LOADED(name)
 	self:UnregisterEvent("ADDON_LOADED")
 	self:RegisterEvent("PLAYER_ENTERING_WORLD")
 	playerGUID = UnitGUID("player")
-	self:ZONE_CHANGED_NEW_AREA()
 
 	SLASH_HALIONHELPERCOMMAND1 = "/halionhelper"
 	SlashCmdList["HALIONHELPERCOMMAND"] = function()
@@ -247,6 +246,22 @@ function addon:PLAYER_REGEN_ENABLED()
 	end
 end
 
+function addon:UNIT_AURA(unit)
+	if unit == "boss1" and UnitExists(unit) and not self.firstrun then
+		for id, _ in pairs(corporeality) do
+			local spellid = select(11, UnitBuff(unit, GetSpellInfo(id)))
+			if spellid then
+				if HalionBar then
+					HalionBar:Show()
+					HalionBar:MoveIndicator(corporeality[spellid])
+				end
+				self.firstrun = true
+				break
+			end
+		end
+	end
+end
+
 function addon:ZONE_CHANGED_NEW_AREA()
 	local inInstance, instanceType = IsInInstance()
 	if not inInstance or instanceType ~= "raid" then
@@ -258,13 +273,27 @@ function addon:ZONE_CHANGED_NEW_AREA()
 	enabled = (mapID == 610)
 
 	if enabled then
+		self:RegisterEvent("UNIT_AURA")
 		self:RegisterEvent("PLAYER_REGEN_ENABLED")
 		self:RegisterEvent("PLAYER_REGEN_DISABLED")
 		self:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 	else
+		self:RegisterEvent("UNIT_AURA")
 		self:UnregisterEvent("PLAYER_REGEN_ENABLED")
 		self:UnregisterEvent("PLAYER_REGEN_DISABLED")
 		self:UnregisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+	end
+end
+
+function addon:UpdateCorporeality()
+	if UnitExists("boss1") then
+		for id, _ in pairs(corporeality) do
+			local spellid = select(11, UnitBuff("boss1", GetSpellInfo(id)))
+			if spellid and HalionBar then
+				HalionBar:MoveIndicator(corporeality[spellid])
+				break
+			end
+		end
 	end
 end
 
@@ -295,12 +324,14 @@ function addon:COMBAT_LOG_EVENT_UNFILTERED(_, event, srcGUID, _, _, dstGUID, dst
 		if HalionBar then
 			HalionBar.here:SetText(L["Inside"])
 			HalionBar.there:SetText(L["Outside"])
+			self:UpdateCorporeality()
 		end
 	elseif self:IsHalion(srcGUID) == 39863 and isInside then
 		isInside = false
 		if HalionBar then
 			HalionBar.here:SetText(L["Outside"])
 			HalionBar.there:SetText(L["Inside"])
+			self:UpdateCorporeality()
 		end
 	end
 
