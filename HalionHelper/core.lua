@@ -3,10 +3,9 @@ local L = core.L
 _G.HalionHelper = core
 
 -- globals
-local unpack = unpack
-local select = select
-local tonumber = tonumber
-local tostring = tostring
+local pairs, next, select = pairs, next, select
+local unpack, setmetatable = unpack, setmetatable
+local tostring, tonumber = tostring, tonumber
 local UnitGUID, UnitBuff = UnitGUID, UnitBuff
 local IsInInstance = IsInInstance
 local IsRaidLeader = IsRaidLeader
@@ -17,7 +16,7 @@ local PlaySoundFile = PlaySoundFile
 
 -- locals
 local halion = {[40142] = true, [39863] = true}
-local cached = {}
+local cached
 local combustion = GetSpellInfo(74562)
 local consumption = GetSpellInfo(74792)
 local texture = [[Interface\BUTTONS\WHITE8X8]]
@@ -62,6 +61,29 @@ local colors = {
 	[10] = {1, 0, 0},
 	[11] = {1, 0, 0}
 }
+
+-- week tables
+local new, del
+do
+	local pool = setmetatable({}, {__mode = "k"})
+
+	function new()
+		local t = next(pool) or {}
+		pool[t] = nil
+		return t
+	end
+
+	function del(t)
+		if t then
+			wipe(t)
+			t[true] = true
+			t[true] = nil
+			setmetatable(t, nil)
+			pool[t] = true
+		end
+		return nil
+	end
+end
 
 -- play audio file
 local function AlertPlayer(file)
@@ -231,16 +253,18 @@ function addon:ADDON_LOADED(name)
 end
 
 function addon:PLAYER_ENTERING_WORLD()
+	playerGUID = playerGUID or UnitGUID("player")
+	print("here", playerGUID)
 	self:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 	self:ZONE_CHANGED_NEW_AREA()
 end
 
 function addon:PLAYER_REGEN_DISABLED()
-	inCombat, cached = true, {}
+	inCombat, cached = true, new()
 end
 
 function addon:PLAYER_REGEN_ENABLED()
-	inCombat, cached = false, {}
+	inCombat, cached = false, del(cached)
 	if HalionBar then
 		HalionBar:Hide()
 	end
@@ -299,12 +323,13 @@ end
 
 function addon:IsHalion(guid)
 	if tonumber(guid) then
-		if cached[guid] then
+		if cached and cached[guid] then
 			return cached[guid]
 		end
 
 		local id = tonumber(guid:sub(9, 12), 16)
 		if id and halion[id] then
+			cached = cached or new()
 			cached[guid] = id
 			return id
 		end
