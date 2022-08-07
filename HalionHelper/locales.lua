@@ -1,7 +1,7 @@
 --[[
 Translators:
 
-frFR: bkader#6361
+frFR: bkader#5341
 esES: Ícar#8167
 zhCN: meatgaga#9470
 

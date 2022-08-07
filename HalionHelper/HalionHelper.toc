@@ -1,10 +1,11 @@
 ## Interface: 30300
 ## Title: Halion Helper
 ## Notes: Helps you see the Halion's Corporeality during phase 3
-## Author: Allara, Phanx
+## Author: Kader (|cff808080bkader#5341|r)
 ## Version: 1.0
 ## SavedVariables: HalionHelperDB
 ## LoadManagers: AddonLoader
+## X-Credits: Allara, Phanx
 ## X-Category: Boss Encounters
 ## X-LoadOn-Zone: The Ruby Sanctum
 ## X-LoadOn-Slash: /halionhelper
